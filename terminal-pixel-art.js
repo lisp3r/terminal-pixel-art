@@ -8,7 +8,7 @@ SYMB = '▄'
 fs.readFile('./frame.json', (err, data) => {
     if (err) throw err;
     let imgData = JSON.parse(data);
-    console.log(paint(imgData['images'][0], imgData['colors'], "    ", "", 2, 2))
+    console.log(paint(imgData['images'][0], imgData['colors'], "    ", "", 1,1))
 });
 
 
@@ -23,6 +23,7 @@ function paint(image, colorScheme, indentation="", comment="", xScale=1, yScale=
         let row = []
         for (let x = 0; x < imgWidth; x += xScale) {
             curColor = colorScheme[img[y][x]];
+            //row.push(chalk.hex(curColor)(SYMB));
             row.push(chalk.bgHex(curColor).hex(colorScheme[img[y+1][x]])(SYMB));
         }
         outcome.push(indentation + row.join('') + (comment && comment[y / 2] ? comment[y / 2] : ""));
