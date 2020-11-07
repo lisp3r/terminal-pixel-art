@@ -1,6 +1,7 @@
-from PIL import Image
-from json import dump
+from PIL import Image, GifImagePlugin
+from json import dumps
 import argparse
+import os.path
 
 
 def getColors(im):
@@ -44,50 +45,57 @@ def getAscii(img_arr):
 def printAscii(img_arr):
     print(getAscii(img_arr))
 
-def toJson(image, colors, filename='ascii_data.json'):
+def _writeDown(data, file):
+    with open(file, 'w') as f:
+        f.write(data)
+
+def toPlainText(images: list, colors: dict, file: str):
+    str_colors = '\n'.join([f'{x}: {colors[x]}' for x in colors])
+    if len(images) == 1:
+        _writeDown(f'{images[0]}\n\n{str_colors}', f'{file}.txt')
+    else:
+        n = 1
+        for img in images:
+            _writeDown(f'{img}\n\n{str_colors}', f'{file}_{n}.txt')
+            n = n+1
+
+def toJson(images: list, colors: dict, file: str):
     json_dict = {
-        "image": getAscii(image),
+        "images": images,
         "colors": colors
     }
+    _writeDown(dumps(json_dict), f'{file}.json')
 
-    with open(filename, 'w') as f:
-        dump(json_dict, f)
+def processImg(pil_image):
+    im_pixels = imgToList(pil_image)
+    im_resized = resizeImg(im_pixels, getPixelSize(im_pixels))
+    return getAscii(im_resized)
 
-def toPlainText(image, colors, filename='ascii_data.txt'):
-    with open(filename, 'w') as f:
-        f.write(getAscii(image))
-        f.write('\n\n')
-        f.write('\n'.join([f'{x}: {im_colors[x]}' for x in im_colors]))
+def processGif(pil_image):
+    frames = []
+    for frame in range(0, pil_image.n_frames):
+        pil_image.seek(frame)
+        frames.append(processImg(pil_image))
+    return frames
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
     description='Convert pixelart image to ascii art')
 
     parser.add_argument('image', metavar='img', help='Image (gif, png)')
-    parser.add_argument('-o', '--out', metavar='output', help='Output result as plain text')
-    parser.add_argument('--json', metavar='json', help='Output result json file')
+    parser.add_argument('--json', action="store_true", help='Output result json file')
 
     args = parser.parse_args()
 
+    im_file_name = os.path.split(args.image)[-1]
+
     im = Image.open(args.image)
-    im_pixels = imgToList(im)
-    im_resized = resizeImg(im_pixels, getPixelSize(im_pixels))
-    im_colors = getColors(im)
+    colors = getColors(im)
 
-    if args.out:
-        toPlainText(im_resized, im_colors, args.out)
+    ascii_img_list = processGif(im) if im.is_animated else [processImg(im)]
+
     if args.json:
-        toJson(im_resized, im_colors, args.json)
-    if not args.json and not args.out:
-        printAscii(im_resized)
-        print('\n'.join([f'{x}: {im_colors[x]}' for x in im_colors]))
-
-
-
-    # pixels = imgToList(im)
-    # img_colors = getColors(im)
-    # pix_size = getPixelSize(pixels)
-    # one_pixel_img = resizeImg(pixels, pix_size)
-    # # printAscii(one_pixel_img)
-    # # print(getColors(im))
-    # toJson(getAscii(one_pixel_img), img_colors)
+        toJson(ascii_img_list, colors, im_file_name)
+    else:
+        toPlainText(ascii_img_list, colors, im_file_name)
